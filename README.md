@@ -1,57 +1,48 @@
 # Omarchy setup
 
-Portable, MIT-licensed desktop customizations for Omarchy: **Afterglow** (animated clock/weather screensaver), **Vigil** (task-aware keep-awake), custom clock/weather/network/notification widgets, and optional **Relay** captions and agent-usage widgets.
+Kiat’s portable desktop customizations for Omarchy: apps, bar widgets, and background services, with one installer and local backup/restore tools. MIT licensed.
 
-This is a curated setup, not a copy of a home directory. It contains no account stores, passwords, API keys, saved networks, personal locations, histories, caches, or desktop screenshots. Existing local secrets are never uploaded by these tools.
+This repository contains curated source and neutral defaults. Personal preferences travel separately in private backups; passwords, accounts, and hardware configuration are excluded. Targets the Omarchy 4.5 / Quickshell layout.
 
-## On another computer
+## Customizations
 
-Install Omarchy first. These customizations target the Omarchy 4.5 / Quickshell layout; a different release may need adjustments. Monitor, keyboard-device, and other hardware configuration is intentionally left to the destination computer.
+| Component | What it does | Install |
+| --- | --- | --- |
+| [Afterglow (formerly Colombo)](docs/components.md#afterglow) | Animated logo, large clock, and optional weather screensaver. | Default |
+| [Vigil](docs/components.md#vigil) | One keep-awake switch for manual and AI tasks, with battery-aware sleep policy. | Default |
+| [Local and Home Clock](docs/components.md#local-and-home-clock) | Local/home times and a calendar popup. | Default |
+| [My Weather](docs/components.md#my-weather) | Bar weather pill and detailed forecast panel. | Default |
+| [My Network](docs/components.md#my-network) | Wi-Fi connections, connection diagnostics, and captive-portal sign-in helper. | Default |
+| [My Notifications](docs/components.md#my-notifications) | Notification popups, history, and Do Not Disturb service. | Default |
+| [My Idle](docs/components.md#my-idle) | Screensaver, lock, and display-wake handling integrated with Vigil. | Default |
+| [My Agents](docs/components.md#my-agents) | AI account usage, limits, pace, balances, and available reset credits. | `--agents` |
+| [Relay](docs/components.md#relay) | Live translated meeting captions with a desktop app and bar widget. | `--relay` |
+
+## Setup tools
+
+| Tool | Purpose |
+| --- | --- |
+| [Installer and layout integration](docs/install.md) | Build apps, install components, and merge the bar layout. |
+| [Private backup and restore](docs/backup-restore.md) | Move allowlisted preferences between computers, with checksum checks and rollback backups. |
+| [Agent guidance](AGENTS.md) | Repository workflow; `--agent-guidance` also installs minimal Vigil instructions for Codex and Claude. |
+
+## Get started
+
+Install Omarchy first, then run as your regular desktop user:
 
 ```sh
 git clone https://github.com/kiatng/omarchy-setup.git
 cd omarchy-setup
-./bin/setup plan
-# Review packages.json, then install missing dependencies reported by install.
-./bin/setup install --agent-guidance
+./bin/setup plan --agents --relay
+./bin/setup install --agents --relay --agent-guidance
 ```
 
-Run as your regular desktop user. Building packages uses `makepkg`; package installation requests administrator authentication. `install` builds Vigil, backs up and merges the desktop configuration, enables its user service, and restarts the shell. It does not toggle keep-awake, suspend, or lock the computer. A fresh Vigil session starts Off. A locked desktop may defer/refuse the shell restart; retry after unlocking.
+Omit `--agents` or `--relay` if unwanted. Install reports missing dependencies; see [installation](docs/install.md) for details and side effects. Configure provider accounts separately. Superwhisper and machine-specific Hyprland settings are not bundled.
 
-Add `--relay` to build Relay and add its widget. Configure its provider credentials separately using the app's keyring integration. Add `--agents` to include the agent-usage widget: it reads your locally configured account credentials at runtime to query provider usage; no credentials are bundled. Superwhisper is not redistributed; install it separately if wanted.
+## Guides
 
-`--agent-guidance` adds a short managed Vigil snippet and skill to Codex and Claude. Other PC controls remain under the existing `omarchy` CLI. Application source and build instructions are under `apps/`.
+[Use components](docs/components.md) · [Install](docs/install.md) · [Back up / restore](docs/backup-restore.md) · [Maintain / extend](docs/maintenance.md) · [Privacy](docs/privacy.md)
 
-## Backup and restore private preferences
+Agents: start with [AGENTS.md](AGENTS.md), then read only the relevant guide. The same guides serve human operators.
 
-```sh
-./bin/setup backup --agents --relay
-# Prints a local backup directory under ~/.local/state/omarchy-setup/backups/
-./bin/setup restore --from /path/to/that/backup
-```
-
-Backups are private, local, allowlisted copies; keep them off GitHub and transfer them through your own secure backup channel. They preserve customized widget code, the shell layout, Afterglow preferences, and Vigil’s battery reserve. Restore verifies checksums, rejects unexpected paths/symlinks, and creates a rollback backup first. When moving between usernames, it rebases old home-directory paths. It does not migrate credentials, hardware configuration, or active tasks.
-
-On a new machine, run `install` first, then restore your private backup. Restart the shell when unlocked. Agent instructions and packaged applications are reinstalled from source, not restored from account directories. Hardware-specific app preferences should be checked on the destination.
-
-`apply --home /tmp/example-home` writes only configuration to an alternate home and starts no services. It is useful for reviewing a restore. `plan` makes no changes. Existing layout settings and unrelated configuration keys are preserved; stock widgets with bundled replacements are switched to the custom versions.
-
-## Defaults and privacy
-
-- Home clock: UTC. Set `HOME_ZONE` in your installed `kiat.clock/clock.py` for your own home timezone.
-- Afterglow: weather and Wi-Fi positioning start **off**. Opt in through `~/.config/omarchy/ambient/settings.json`. Weather/location features contact Omarchy GeoIP and Open-Meteo; Wi-Fi positioning additionally sends nearby access-point identifiers to BeaconDB when enabled.
-- The clock's explicit Detect action uses Omarchy GeoIP. The weather widget uses its normal Omarchy/Open-Meteo location behavior. These features can disclose the destination machine's location when used.
-- No blanket export of `~/.config`, `~/.codex`, or `~/.claude`; no system-wide files are overwritten.
-
-## Maintenance
-
-Edit the curated sources here, test, then reinstall the affected component. Do not copy new home-directory files into this repository wholesale. Private backups are not a publication source.
-
-```sh
-./bin/test
-./bin/audit /path/to/gitleaks
-```
-
-The audit checks the publishable tree for credentials and unexpected/private artifact types. Review source changes before pushing; automated scanning cannot prove that arbitrary text is non-private. CI runs the portable Python tests and the publication checks. Qt tests run locally with `apps/vigil/bin/test` and `apps/relay/bin/test`.
-
-See [THIRD_PARTY.md](THIRD_PARTY.md) for attribution. Provider marks remain their respective owners' trademarks; their inclusion does not imply endorsement.
+See [THIRD_PARTY.md](THIRD_PARTY.md) for upstream attribution and provider trademarks.
