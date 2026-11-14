@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Audit exactly the publishable file set; stage a clean copy for secret scanning."""
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+ROOT=Path(__file__).resolve().parent.parent
+scanner=sys.argv[1] if len(sys.argv)>1 else shutil.which('gitleaks')
+if not scanner:raise SystemExit('Install gitleaks or pass its path to bin/audit')
+files=subprocess.check_output(['git','ls-files','-z','--cached','--others','--exclude-standard'],cwd=ROOT).decode().split('\0')
+files=sorted(set(filter(None,files)))
+allowed={'.md','.py','.cpp','.h','.qml','.js','.json','.svg','.qrc','.pro','.toml','.ini','.conf','.desktop','.service','.sh','.yml','.yaml','.txt',''}
+blocked={'build','__pycache__','evidence','backups','private','local','node_modules','.codex','.claude','.ssh','.aws'}
+failures=[]
+for name in files:
+ p=ROOT/name
+ if p.is_symlink() or not p.is_file():failures.append((name,'not a regular file'));continue
+ if any(x in blocked for x in p.relative_to(ROOT).parts[:-1]) or p.suffix not in allowed or p.name.startswith('.env'):
+  failures.append((name,'unexpected/private artifact type'));continue
+ text=p.read_text()
+ # These are user-specific source-machine traces, not generic API field names.
+ patterns=[r'/ho' + r'me/[^/\s]+/',r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',r'(?i)(?:[0-9a-f]{2}:){5}[0-9a-f]{2}']
+ for pattern in patterns:
+  for match in re.finditer(pattern,text):
+   value=match.group()
+   if value.startswith('/home/original-user/'):continue
+   if re.fullmatch(r'(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}',value) and (value.startswith('00:00:5e:00:53:') or value in ['02:00:00:00:00:01','11:22:33:44:55:66']):continue
+   # Report location only, never print a potential secret.
+   failures.append((name,'private-data pattern on line '+str(text[:match.start()].count('\n')+1)))
+if failures:
+ for name,why in failures:print(name+': '+why,file=sys.stderr)
+ raise SystemExit(1)
+with tempfile.TemporaryDirectory(prefix='public-setup-audit-') as tmp:
+ for name in files:
+  out=Path(tmp)/name;out.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/name,out)
+ subprocess.run([str(Path(scanner).resolve()),'dir',tmp,'--redact','--no-banner'],check=True)
+print(f'Publication audit passed: {len(files)} regular text/source files; no screenshots, binaries, account stores, or private backups.')

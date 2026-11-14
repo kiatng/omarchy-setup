@@ -1,0 +1,5 @@
+#!/bin/bash
+# Keep Omarchy's portal lifecycle and VPN handling, overriding only its browser launch.
+set -euo pipefail
+shim_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/shims" && pwd)"
+exec env PATH="$shim_dir:$PATH" /usr/share/omarchy/bin/omarchy-network-captive-portal "$@"

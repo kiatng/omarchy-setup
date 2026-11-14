@@ -1,0 +1,15 @@
+#!/bin/bash
+# A separate session is required: process flags are ignored by an existing browser.
+# HTTP must reach the Wi-Fi gateway before Chromium can upgrade the request.
+set -euo pipefail
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
+[[ -d $runtime_dir && -O $runtime_dir ]] || exit 1
+profile="$runtime_dir/omarchy-wifi-signin-browser"
+umask 077
+mkdir -p -- "$profile"
+[[ -d $profile && ! -L $profile && -O $profile ]] || exit 1
+chmod 700 -- "$profile"
+exec /usr/share/omarchy/bin/omarchy-launch-webapp "$@" \
+  --user-data-dir="$profile" \
+  --disable-features=HttpsUpgrades \
+  --no-first-run --no-default-browser-check

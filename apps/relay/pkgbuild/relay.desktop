@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Relay
+Name[da]=Relay
+GenericName=Live Translation Captions
+GenericName[da]=Direkte oversatte undertekster
+Comment=Live English captions for meetings
+Comment[da]=Direkte engelske undertekster til møder
+Exec=relay open
+Icon=relay
+Terminal=false
+Categories=Utility;Accessibility;
+StartupWMClass=relay
+Keywords=translate;translation;captions;subtitles;meeting;microphone;Sinhala;Tamil;
+Keywords[da]=oversæt;oversættelse;undertekster;møde;mikrofon;

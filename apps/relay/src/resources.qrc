@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="AccentButton.qml">AccentButton.qml</file>
+        <file alias="CaptionList.qml">CaptionList.qml</file>
+        <file alias="SettingsPanel.qml">SettingsPanel.qml</file>
+        <file alias="ProviderCard.qml">ProviderCard.qml</file>
+        <file alias="ShortcutHelp.qml">ShortcutHelp.qml</file>
+        <file alias="icons/mic.svg">icons/mic.svg</file>
+        <file alias="icons/pause.svg">icons/pause.svg</file>
+        <file alias="icons/settings.svg">icons/settings.svg</file>
+        <file alias="i18n/en.json">i18n/en.json</file>
+        <file alias="i18n/da.json">i18n/da.json</file>
+    </qresource>
+</RCC>

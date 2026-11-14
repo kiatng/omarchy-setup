@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+"""Allowlisted desktop restore. No home-directory discovery or credential export."""
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from datetime import datetime, timezone
+
+ROOT = Path(__file__).resolve().parent.parent
+PLUGINS = ('kiat.clock','kiat.weather','kiat.network','kiat.notifications','kiat.idle')
+
+def safe(home, relative):
+    rel = Path(relative)
+    if rel.is_absolute() or '..' in rel.parts:
+        raise ValueError('Unsafe relative path')
+    path = home / rel
+    for candidate in [path, *path.parents]:
+        if candidate == home: break
+        if candidate.is_symlink(): raise ValueError(f'Refusing symlink: {relative}')
+    return path
+
+def atomic(path, data, mode=0o600):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.setup-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+def layout(existing, agents=False, relay=False):
+    config = json.loads(json.dumps(existing))
+    sections = config.setdefault('bar',{}).setdefault('layout',{})
+    if not isinstance(sections,dict): raise ValueError('Unexpected bar layout')
+    for section in ('left','centerBegin','center','centerEnd','right','tray'):
+        sections.setdefault(section,[])
+    replacements = {'omarchy.clock':'kiat.clock','omarchy.network':'kiat.network'}
+    if agents: replacements['omarchy.agents']='kiat.agents'
+    for entries in sections.values():
+        for entry in entries:
+            if entry.get('id') in replacements: entry['id']=replacements[entry['id']]
+            if entry.get('id')=='omarchy.indicators':
+                items=entry.get('items',entry.get('indicators',['PasswordlessSudo','ScreenRecording','RemoteSession','Reminder','NightLight','Dnd','StayAwake']))
+                entry['items']=[x for x in items if (x if isinstance(x,str) else x.get('id'))!='StayAwake']
+    def add(section, plugin):
+        if not any(e.get('id')==plugin for entries in sections.values() for e in entries):
+            sections[section].append({'id':plugin})
+    add('centerBegin','kiat.vigil')
+    add('centerEnd','kiat.weather')
+    if agents: add('right','kiat.agents')
+    if relay: add('right','kiat.relay')
+    disabled=config.setdefault('disabledPlugins',[])
+    for name in ('omarchy.idle','omarchy.notifications'):
+        if name not in disabled: disabled.append(name)
+    enabled=config.setdefault('plugins',[])
+    for name in ('kiat.idle','kiat.notifications'):
+        if not any(e.get('id')==name for e in enabled):enabled.append({'id':name})
+    config.setdefault('idle',{'screensaver':150,'lock':300})
+    return config
+
+def file_plan(home, agents=False, relay=False):
+    writes={}
+    def tree(source,target):
+        for p in sorted(source.rglob('*')):
+            if p.is_symlink(): raise ValueError('Source symlinks are not supported')
+            if p.is_file() and '__pycache__' not in p.parts:
+                writes[str(Path(target)/p.relative_to(source))]=(p.read_bytes(),p.stat().st_mode&0o777)
+    for plugin in PLUGINS + (('kiat.agents',) if agents else ()):
+        tree(ROOT/'config/omarchy/plugins'/plugin,'.config/omarchy/plugins/'+plugin)
+    tree(ROOT/'config/omarchy/wifi-signin','.config/omarchy/wifi-signin')
+    tree(ROOT/'apps/vigil/integration/plugin','.config/omarchy/plugins/kiat.vigil')
+    if relay:
+        relay_link=home/'.config/omarchy/plugins/kiat.relay'
+        if relay_link.is_symlink():
+            if relay_link.resolve()!=Path('/usr/share/relay/shell'):raise ValueError('Unexpected Relay plugin symlink')
+        else:tree(ROOT/'apps/relay/shell','.config/omarchy/plugins/kiat.relay')
+    ambient='.config/omarchy/ambient'
+    for name in ('screensaver.py','weather.py','location.py','bigtext.py','alacritty.toml','foot.ini','ghostty.conf'):
+        writes[f'{ambient}/{name}']=((ROOT/'apps/afterglow'/name).read_bytes(),0o644)
+    settings=safe(home,f'{ambient}/settings.json')
+    writes[f'{ambient}/settings.json']=((settings.read_bytes() if settings.exists() else (ROOT/'apps/afterglow/settings.json').read_bytes()),0o600)
+    spec=importlib.util.spec_from_file_location('afterglow_launcher',ROOT/'apps/afterglow/generate_launcher.py')
+    generator=importlib.util.module_from_spec(spec);spec.loader.exec_module(generator)
+    with tempfile.TemporaryDirectory() as tmp:
+        out=Path(tmp)/'launch'
+        generator.generate(Path(os.environ.get('OMARCHY_SETUP_LAUNCHER','/usr/share/omarchy/bin/omarchy-launch-screensaver')),out,home/ambient/'screensaver.py')
+        writes[f'{ambient}/launch']=(out.read_bytes(),0o755)
+    writes['.local/bin/omarchy-ambient-status']=(b'#!/bin/sh\nexec python3 "$HOME/.config/omarchy/ambient/screensaver.py" --status\n',0o755)
+    reserve=safe(home,'.config/vigil/settings.json')
+    writes['.config/vigil/settings.json']=(reserve.read_bytes() if reserve.exists() else b'{"reserve":15}\n',0o600)
+    shell=safe(home,'.config/omarchy/shell.json')
+    config=json.loads(shell.read_text() if shell.exists() else (ROOT/'config/shell-default.json').read_text())
+    writes['.config/omarchy/shell.json']=((json.dumps(layout(config,agents,relay),indent=2)+'\n').encode(),0o600)
+    for name in writes:safe(home,name)
+    return writes
+
+def backup(home,writes,label='backup'):
+    base=home/'.local/state/omarchy-setup/backups'
+    safe(home,'.local/state/omarchy-setup/backups')
+    base.mkdir(parents=True,exist_ok=True)
+    dest=Path(tempfile.mkdtemp(prefix=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-')+label+'-',dir=base))
+    os.chmod(dest,0o700)
+    manifest={'version':1,'source_home':str(home),'files':{}}
+    for rel in writes:
+        path=safe(home,rel)
+        if path.exists() and not path.is_file():raise ValueError(f'Not a regular file: {rel}')
+        record={'existed':path.exists()}
+        if path.exists():
+            data=path.read_bytes();atomic(dest/'files'/rel,data)
+            record.update(mode=path.stat().st_mode&0o777,sha256=hashlib.sha256(data).hexdigest())
+        manifest['files'][rel]=record
+    atomic(dest/'manifest.json',(json.dumps(manifest,indent=2)+'\n').encode())
+    return dest
+
+def apply(home,writes):
+    dest=backup(home,writes,'before-apply')
+    try:
+        for rel,(data,mode) in writes.items():atomic(safe(home,rel),data,mode)
+    except Exception:
+        print('Apply failed; recover using backup:',dest,file=sys.stderr)
+        raise
+    return dest
+
+def restore(home,source,allowed):
+    source=source.resolve()
+    manifest=json.loads((source/'manifest.json').read_text())
+    if manifest.get('version')!=1:raise ValueError('Unsupported backup format')
+    records=manifest['files']
+    if not set(records).issubset(allowed):raise ValueError('Backup contains paths outside the setup allowlist')
+    staged={}
+    for rel,info in records.items():
+        safe(home,rel)
+        if info['existed']:
+            path=safe(source,'files/'+rel)
+            data=path.read_bytes()
+            if hashlib.sha256(data).hexdigest()!=info['sha256']:raise ValueError('Backup checksum mismatch')
+            old_home=manifest.get('source_home',str(home))
+            if old_home!=str(home):data=data.decode('utf-8').replace(old_home,str(home)).encode('utf-8')
+            staged[rel]=(data,int(info['mode'])&0o777)
+        else:staged[rel]=None
+    before=backup(home,records,'before-restore')
+    for rel,item in staged.items():
+        target=safe(home,rel)
+        if item:atomic(target,*item)
+        else:target.unlink(missing_ok=True)
+    return before
+
+def install_apps(relay):
+    packages=json.loads((ROOT/'packages.json').read_text())
+    required=packages['base']+(packages['relay'] if relay else [])
+    missing=[p for p in required if subprocess.run(['pacman','-Q',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode]
+    if missing:
+        raise ValueError('Install dependencies first: omarchy pkg add '+' '.join(missing))
+    for name in ['vigil']+(['relay'] if relay else []):
+        subprocess.run([str(ROOT/'apps'/name/'bin/install')],check=True)
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command',choices=['plan','apply','install','backup','restore'])
+    parser.add_argument('--home',type=Path,default=Path.home(),help='Alternate home for tests; install requires your actual home')
+    parser.add_argument('--agents',action='store_true',help='Include the account-usage widget; it reads local credentials at runtime')
+    parser.add_argument('--relay',action='store_true',help='Include Relay and its widget; configure provider keys separately')
+    parser.add_argument('--agent-guidance',action='store_true',help='Install Vigil instructions for Codex and Claude (install only)')
+    parser.add_argument('--from',dest='source',type=Path,help='Local backup directory for restore')
+    args=parser.parse_args();home=args.home.expanduser().resolve()
+    if home==ROOT or ROOT in home.parents:raise ValueError('Private home/backup data must stay outside this public repository')
+    if args.command=='install' and home!=Path.home().resolve():raise ValueError('install only supports the actual home')
+    if args.command=='restore':
+        if not args.source:raise ValueError('restore requires --from')
+        with tempfile.TemporaryDirectory() as tmp:
+            allowed=file_plan(Path(tmp),True,True)
+        print('Before-restore backup:',restore(home,args.source,allowed));return
+    writes=file_plan(home,args.agents,args.relay)
+    if args.command=='plan':
+        print(json.dumps({'files':sorted(writes),'packages':json.loads((ROOT/'packages.json').read_text()),'note':'plan makes no changes; hardware settings and credentials are excluded'},indent=2));return
+    if args.command=='backup':print(backup(home,writes));return
+    if args.command=='install':install_apps(args.relay)
+    print('Before-apply backup:',apply(home,writes))
+    if args.command=='install':
+        if args.agent_guidance:subprocess.run(['vigil','skill','install','--json'],check=True)
+        subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+        subprocess.run(['systemctl','--user','enable','--now','vigil.service'],check=True)
+        subprocess.run(['omarchy','restart','shell'],check=True)
+        print('Installed. Vigil starts Off; enable it when ready. No computer sleep or lock test was run.')
+    else:print('Files applied; services were not started. Use install on the destination computer.')
+
+if __name__=='__main__':
+    try:main()
+    except (ValueError,OSError,subprocess.CalledProcessError) as error:
+        print(str(error),file=sys.stderr);sys.exit(1)

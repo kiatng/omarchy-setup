@@ -1,0 +1,33 @@
+pkgname=relay
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Live English captions for meetings: hears the room, detects the language, translates'
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'qt6-multimedia' 'qt6-svg' 'qt6-websockets' 'qt6-wayland' 'libsecret')
+optdepends=('voxtype-bin: offline translation with a multilingual Whisper model'
+            'gnome-keyring: a Secret Service to remember API keys')
+makedepends=('gcc' 'make')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/.."
+  ./bin/build
+}
+
+check() {
+  cd "$startdir/.."
+  ./bin/test
+}
+
+package() {
+  cd "$startdir/.."
+  install -Dm755 build/relay "$pkgdir/usr/bin/relay"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 pkgbuild/relay.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/relay.svg"
+  install -Dm644 pkgbuild/relay.desktop "$pkgdir/usr/share/applications/relay.desktop"
+  # The Omarchy bar button, linked into ~/.config/omarchy/plugins by the user.
+  install -Dm644 -t "$pkgdir/usr/share/relay/shell" shell/manifest.json shell/BarWidget.qml
+  install -Dm644 -t "$pkgdir/usr/share/relay/shell/i18n" shell/i18n/*.json
+}

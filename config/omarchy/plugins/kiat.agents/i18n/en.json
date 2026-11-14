@@ -1,0 +1,12 @@
+{
+  "resets.unavailable": "Banked resets: unavailable",
+  "resets.full": {
+    "one": "Banked resets: %1 full",
+    "other": "Banked resets: %1 full"
+  },
+  "resets.fable": {
+    "one": "Banked resets: %1 Fable-only",
+    "other": "Banked resets: %1 Fable-only"
+  },
+  "resets.expiry": "%1 \u00b7 expires %2"
+}

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+build/
+pkgbuild/pkg/
+pkgbuild/src/
+*.pkg.tar.*
+apps/*/docs/*.png
+.env
+.env.*
+*.log
+*.bak
+backups/
+private/
+local/

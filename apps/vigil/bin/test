@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+mkdir -p "$ROOT/build/tests" "$ROOT/docs"
+cd "$ROOT/build/tests"
+qmake6 "$ROOT/tests/vigil_tests.pro"
+make -j4
+QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORMTHEME= QT_QPA_PLATFORM=offscreen ./vigil_tests

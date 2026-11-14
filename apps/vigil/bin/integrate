@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Install only user-owned desktop integration, with a restorable backup."""
+import json, os, shutil, subprocess, time
+from pathlib import Path
+from datetime import datetime
+root=Path(__file__).resolve().parent.parent
+home=Path.home()
+backup=home/'.local/state/vigil/backups'/datetime.now().strftime('%Y%m%d-%H%M%S')
+backup.mkdir(parents=True)
+def keep(path):
+    if path.exists():
+        target=backup/path.relative_to(home)
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copy2(path,target)
+def atomic(path,text):
+    path.parent.mkdir(parents=True,exist_ok=True)
+    tmp=path.with_name(path.name+'.vigil-tmp')
+    tmp.write_text(text);os.replace(tmp,path)
+config=home/'.config/omarchy/shell.json'
+idle=home/'.config/omarchy/plugins/kiat.idle/Service.qml'
+settings=json.loads(config.read_text())
+source=idle.read_text()
+old='readonly property bool idleEnabled: stayAwakeStateLoaded && !stayAwake'
+new='readonly property bool idleEnabled: true // Vigil inhibits sleep; automatic locking stays active.'
+if old not in source and new not in source: raise SystemExit('Idle integration changed; review before modifying.')
+source=source.replace(old,new)
+source=source.replace('if (enabled) cancelIdleCycle("stay-awake")\n    else Qt.callLater(root.handleIdleChanged)', 'Qt.callLater(root.handleIdleChanged) // Keep idle locking independent of Vigil holds.')
+source=source.replace('return root.setIdleEnabled(!root.idleEnabled)', 'return root.setIdleEnabled(root.stayAwake)')
+for section,entries in settings['bar']['layout'].items():
+    for entry in entries:
+        if entry.get('id')=='omarchy.indicators':
+            items=entry.get('items',entry.get('indicators',['PasswordlessSudo','ScreenRecording','RemoteSession','Reminder','NightLight','Dnd','StayAwake']))
+            entry['items']=[x for x in items if (x if isinstance(x,str) else x.get('id'))!='StayAwake']
+if not any(e.get('id')=='kiat.vigil' for es in settings['bar']['layout'].values() for e in es):
+    settings['bar']['layout']['centerBegin'].append({'id':'kiat.vigil'})
+keep(config);keep(idle)
+dest=home/'.config/omarchy/plugins/kiat.vigil'
+for f in (root/'integration/plugin').rglob('*'):
+    if f.is_file():
+        target=dest/f.relative_to(root/'integration/plugin');keep(target);atomic(target,f.read_text())
+atomic(idle,source);atomic(config,json.dumps(settings,indent=2)+'\n')
+for agent,filename in [('.codex','AGENTS.md'),('.claude','CLAUDE.md')]:
+    keep(home/agent/filename);keep(home/agent/'skills/vigil/SKILL.md')
+subprocess.run(['/usr/bin/vigil','skill','install','--json'],check=True)
+subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+subprocess.run(['systemctl','--user','enable','--now','vigil.service'],check=True)
+for attempt in range(30):
+    ready=subprocess.run(['/usr/bin/vigil','status','--json'],capture_output=True)
+    if ready.returncode==0: break
+    time.sleep(0.2)
+else: raise SystemExit('Service did not become ready; inspect journalctl --user -u vigil.service.')
+subprocess.run(['omarchy','restart','shell'],check=True)
+print('Integration backup:',backup)

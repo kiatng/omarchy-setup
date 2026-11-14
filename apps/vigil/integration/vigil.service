@@ -1,0 +1,15 @@
+[Unit]
+Description=Vigil adaptive keep-working service
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/vigil daemon
+Restart=on-failure
+RestartSec=2
+Environment=QT_QPA_PLATFORM=offscreen
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

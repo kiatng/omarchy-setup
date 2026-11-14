@@ -1,0 +1,4 @@
+{
+  "base": ["base-devel", "python", "qt6-base", "qt6-declarative", "qt6-wayland", "qt6-svg", "libnotify", "curl", "socat", "ttfx", "iw"],
+  "relay": ["qt6-multimedia", "qt6-websockets", "libsecret"]
+}

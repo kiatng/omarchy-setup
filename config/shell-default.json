@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "bar": {
+    "position": "top",
+    "layout": {
+      "left": [{"id":"omarchy.menu"},{"id":"omarchy.workspaces"}],
+      "centerBegin": [{"id":"omarchy.indicators"}],
+      "center": [{"id":"omarchy.clock"}],
+      "centerEnd": [],
+      "right": [{"id":"omarchy.tray"},{"id":"omarchy.bluetooth"},{"id":"omarchy.network"},{"id":"omarchy.audio"},{"id":"omarchy.monitor"},{"id":"omarchy.power"}],
+      "tray": []
+    }
+  },
+  "idle": {"screensaver":150,"lock":300}
+}

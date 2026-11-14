@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Vigil
+Name[da]=Vigil
+Comment=Keep local work running with battery protection
+Comment[da]=Hold lokale opgaver i gang med batteribeskyttelse
+Exec=vigil open
+Icon=vigil
+Terminal=false
+Categories=Utility;
+StartupWMClass=vigil

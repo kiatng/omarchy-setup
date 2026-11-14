@@ -1,0 +1,7 @@
+[colors.primary]
+background = "0x08101f"
+foreground = "0xe9efff"
+[font]
+size = 10.0
+[window]
+opacity = 1.0

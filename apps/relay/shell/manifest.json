@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "kiat.relay",
+  "name": "Relay",
+  "version": "0.1.0",
+  "author": "Kiat",
+  "license": "MIT",
+  "description": "Opens Relay's live English meeting captions and shows when it is listening.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Relay",
+    "description": "Live English captions; lights up while Relay is listening.",
+    "category": "AI",
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}

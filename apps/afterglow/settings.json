@@ -1,0 +1,14 @@
+{
+  "logo": true,
+  "reveal": true,
+  "max_effect_seconds": 45,
+  "skip_effects": [
+    "swarm",
+    "matrix"
+  ],
+  "weather_enabled": false,
+  "wifi_positioning": false,
+  "refresh_seconds": 900,
+  "home_zone": "UTC",
+  "home_name": "UTC"
+}
