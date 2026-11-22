@@ -2019,6 +2019,11 @@ Panel {
     readonly property var scoped: window && window.scoped ? window.scoped : []
     readonly property bool alarming: window && window.percent >= 0.9
     readonly property real resetMs: root.resetMsFor(window)
+    readonly property string resetTime: {
+      if (resetMs <= 0) return ""
+      var reset = new Date(window.resetAt)
+      return Qt.formatDateTime(reset, reset.getMinutes() === 0 ? "dddd hap" : "dddd h:mmap")
+    }
     readonly property real rowHeight: Math.max(compactTitle.implicitHeight, compactValue.implicitHeight)
     implicitHeight: rowHeight + (bankedLabel.visible ? Style.space(5) + bankedLabel.implicitHeight : 0)
 
@@ -2081,25 +2086,15 @@ Panel {
       markers: compact.scoped
     }
 
-    // Sized to the widest time left ("19h 40m"), so every meter ends in the
-    // same place.
-    TextMetrics {
-      id: compactValueMetrics
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      text: "00h 00m"
-    }
-
-    // How long until the window resets. The meter says how full it is; the
-    // exact percentage is in the row's tooltip.
     Text {
       id: compactValue
-      width: Math.ceil(compactValueMetrics.advanceWidth)
+      width: Math.min(implicitWidth, parent.width * 0.45)
       anchors.right: parent.right
       y: (compact.rowHeight - height) / 2
       textFormat: Text.PlainText
       horizontalAlignment: Text.AlignRight
-      text: compact.resetMs > 0 ? root.formatDuration(compact.resetMs) : ""
+      elide: Text.ElideRight
+      text: compact.resetTime
       color: root.dim
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
