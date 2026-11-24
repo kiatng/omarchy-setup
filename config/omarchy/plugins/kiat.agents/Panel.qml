@@ -530,6 +530,8 @@ Panel {
     var text = String(label || "").toLowerCase()
     if (text.indexOf("month") >= 0 || text.indexOf("30-day") >= 0) return 30 * 24 * 3600 * 1000
     if (windowIsLong(text)) return 7 * 24 * 3600 * 1000
+    // A session window is Claude's five hours, and Codex's unnamed "5h".
+    if (text.indexOf("session") >= 0) return 5 * 3600 * 1000
     var hours = text.match(/(\d+)\s*-?\s*h(?:our)?\b/)
     if (hours) return Number(hours[1]) * 3600 * 1000
     var minutes = text.match(/(\d+)\s*-?\s*m(?:in(?:ute)?s?)?\b/)
@@ -814,7 +816,9 @@ Panel {
   function dayName(date) {
     var parsed = new Date(String(date || "") + "T00:00:00")
     if (isNaN(parsed.getTime())) return String(date || "")
-    return Qt.locale(Commons.I18n.formatLocale).dayName([7, 1, 2, 3, 4, 5, 6][parsed.getDay()])
+    // Three letters, so the line stays short in any language: the reset day
+    // only needs to be told apart from the other six.
+    return Qt.locale(Commons.I18n.formatLocale).dayName([7, 1, 2, 3, 4, 5, 6][parsed.getDay()], Locale.ShortFormat)
   }
 
   // Only speaks up when the numbers cover more than this machine.
@@ -2006,9 +2010,10 @@ Panel {
     }
   }
 
-  // One line per limit window: title, meter, percentage, and reset. A
-  // model-scoped allowance on the same clock ("Fable" on Weekly) is a marker
-  // on this row's meter, named in the row's tooltip.
+  // One line per limit window: title, tank, and reset. The tank is the
+  // allowance left, poured across seven cells, one per day of the window. A
+  // model-scoped allowance on the same clock ("Fable" on Weekly) is named in
+  // the row's tooltip.
   component CompactLimit: Item {
     id: compact
     property var window: null
@@ -2019,10 +2024,27 @@ Panel {
     readonly property var scoped: window && window.scoped ? window.scoped : []
     readonly property bool alarming: window && window.percent >= 0.9
     readonly property real resetMs: root.resetMsFor(window)
+    // The share of the window still to run, for the tank's needle.
+    readonly property real spanMs: window ? root.windowSpanMs(window.title) : 0
+    readonly property real refFraction: {
+      if (!window || resetMs <= 0 || spanMs <= 0) return -1
+      return root.clamp(resetMs / spanMs, 0, 1)
+    }
     readonly property string resetTime: {
       if (resetMs <= 0) return ""
-      var reset = new Date(window.resetAt)
-      return Qt.formatDateTime(reset, reset.getMinutes() === 0 ? "dddd hap" : "dddd h:mmap")
+      // Always hh:mm, so every row's day text is the same width and the
+      // tanks beside them line up.
+      return Qt.formatDateTime(new Date(window.resetAt), "ddd hh:mm")
+    }
+    // The widest day text can be, measured rather than guessed, so the tank
+    // takes the same length on every row whatever the reset time.
+    readonly property real valueWidth: compactValueMetrics.advanceWidth + Style.space(4)
+
+    TextMetrics {
+      id: compactValueMetrics
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      text: "Mon 00:00"
     }
     readonly property real rowHeight: Math.max(compactTitle.implicitHeight, compactValue.implicitHeight)
     implicitHeight: rowHeight + (bankedLabel.visible ? Style.space(5) + bankedLabel.implicitHeight : 0)
@@ -2067,7 +2089,7 @@ Panel {
     Text {
       id: compactTitle
       textFormat: Text.PlainText
-      width: parent.width * 0.3
+      width: parent.width * 0.26
       y: (compact.rowHeight - height) / 2
       text: compact.window ? root.windowDisplayTitle(compact.window.title) : ""
       color: root.foreground
@@ -2076,19 +2098,24 @@ Panel {
       elide: Text.ElideRight
     }
 
-    Meter {
+    // What is left, between the title and the day it resets: the tank is the
+    // allowance left, and the needle over it is where today sits in the
+    // window, so the level reads against the time left.
+    Tank {
+      id: compactTank
       anchors.left: compactTitle.right
+      anchors.leftMargin: Style.space(10)
       anchors.right: compactValue.left
-      anchors.rightMargin: Style.space(20)
+      anchors.rightMargin: Style.space(10)
       y: (compact.rowHeight - height) / 2
       value: compact.window ? compact.window.percent : -1
       alarming: compact.alarming
-      markers: compact.scoped
+      refFraction: compact.refFraction
     }
 
     Text {
       id: compactValue
-      width: Math.min(implicitWidth, parent.width * 0.45)
+      width: compact.valueWidth
       anchors.right: parent.right
       y: (compact.rowHeight - height) / 2
       textFormat: Text.PlainText
@@ -2147,6 +2174,122 @@ Panel {
         readonly property real along: root.clamp(meterTrack.width * root.clamp(Number(modelData.percent), 0, 1) - width / 2, 0, meterTrack.width - width)
         x: LayoutMirroring.enabled ? meterTrack.width - width - along : along
         color: meter.alarming ? root.urgent : root.foreground
+      }
+    }
+  }
+
+  // The gas tank: what is left of the allowance, poured as one liquid across
+  // seven cells, one per day of the window, so the level has a scale and a
+  // nearly empty tank is visible at a glance.
+  component Tank: Item {
+    id: tank
+    property real value: -1
+    property bool alarming: false
+    property int segments: 7
+    // The share of the window still to run: the needle sits where today is,
+    // so the fill is ahead of it when the pace is fine and behind it when the
+    // allowance is going faster than the week.
+    property real refFraction: -1
+    property real thickness: Math.max(Style.space(6), Math.round(Style.spacing.controlHeight * 0.21))
+    readonly property real gap: Math.max(1, Math.round(thickness * 0.3))
+    readonly property real cellWidth: (width - gap * (segments - 1)) / segments
+    // The meter fills with what is used; the tank holds what is left.
+    readonly property real remaining: value < 0 ? 0 : root.clamp(1 - value, 0, 1)
+
+    // The fill cools as it drains, but only once it is actually low: green
+    // holds to half, amber takes over by a quarter, and the theme's own alarm
+    // colours the last of it. The needle stays one plain colour: where it sits
+    // against the fill already says ahead or behind.
+    readonly property color goodColor: "#7ecf8e"
+    readonly property color warnColor: "#e8b45a"
+    function mixColor(a, b, t) {
+      var k = root.clamp(t, 0, 1)
+      return Qt.rgba(a.r + (b.r - a.r) * k, a.g + (b.g - a.g) * k, a.b + (b.b - a.b) * k, 1)
+    }
+    function levelColor(rem) {
+      var r = root.clamp(rem, 0, 1)
+      if (r >= 0.5) return goodColor
+      if (r >= 0.25) return mixColor(warnColor, goodColor, (r - 0.25) / 0.25)
+      return mixColor(root.urgent, warnColor, r / 0.25)
+    }
+
+    implicitWidth: Math.round(segments * thickness * 1.6) + gap * (segments - 1)
+    implicitHeight: needle.height + thickness
+    visible: value >= 0
+
+    // The needle points down at the scale from above, like a gauge's marker,
+    // on the same axis as the fill: both measure what is left, so fill level
+    // with needle is on pace, right of it is under-using, left is over-using.
+    Canvas {
+      id: needle
+      visible: tank.refFraction >= 0
+      width: Math.round(tank.thickness * 1.5)
+      height: Math.max(3, Math.round(tank.thickness * 0.7))
+      x: tank.width * root.clamp(tank.refFraction, 0, 1) - width / 2
+      y: 0
+      onPaint: {
+        var ctx = getContext("2d")
+        ctx.reset()
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineTo(width, 0)
+        ctx.lineTo(width / 2, height)
+        ctx.closePath()
+        ctx.fillStyle = root.foreground
+        ctx.fill()
+        // A dark edge keeps the marker off the fill it sits on.
+        ctx.lineWidth = 1
+        ctx.strokeStyle = root.surface
+        ctx.stroke()
+      }
+      Connections {
+        target: root
+        function onForegroundChanged() { needle.requestPaint() }
+      }
+      Connections {
+        target: tank
+        function onRefFractionChanged() { needle.requestPaint() }
+      }
+    }
+
+    Row {
+      y: needle.height
+      width: parent.width
+      height: tank.thickness
+      spacing: tank.gap
+      layoutDirection: Qt.LeftToRight
+
+      Repeater {
+        model: tank.segments
+
+        Item {
+          required property int index
+          width: tank.cellWidth
+          height: tank.thickness
+
+          // Hollow, grey-edged: an unfilled segment reads as empty, the way
+          // an unfilled tank does, rather than as a solid block of colour.
+          Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            border.width: Math.max(1, Math.round(tank.thickness * 0.15))
+            border.color: root.dim
+          }
+
+          // Each cell takes its share of the pour, so a level between two
+          // cells reads as a half-full day rather than a rounded step.
+          Rectangle {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            width: parent.width * root.clamp(tank.remaining * tank.segments - index, 0, 1)
+            color: tank.levelColor(tank.remaining)
+
+            Behavior on width {
+              NumberAnimation { duration: Style.duration(160); easing.type: Easing.OutCubic }
+            }
+          }
+        }
       }
     }
   }
