@@ -47,6 +47,7 @@ Use the matching section only. Commands assume installation; source paths link i
 
 - **Install:** `--agents`.
 - **Use:** open the bar panel for provider/account usage, limit windows, pace, balances, and available reset credits where supported. It also exposes account selection and agent launching. Provider support and fields vary; missing usage is not proof of an unused quota.
+- **Limit rows:** each limit window is a seven-cell gas tank, one cell per day of the window, showing the allowance left. The fill cools as it drains (green to half, amber by a quarter, then the theme's urgent colour), and unfilled cells are hollow, so an empty tank reads as empty. A white needle above the tank marks where the clock is in the window: fill level with it is on pace, right of it is under-using, left is over-using. Reset days are three letters and reset times are hh:mm, and every tank is the same length.
 - **Configure:** widget settings control providers, refresh interval (default 900 seconds), and optional snapshot aggregation (default Off). Sign in locally; the widget reads local credentials at runtime. Reset-credit display reads availability; it does not spend credits.
 - **Privacy:** never commit account stores or usage snapshots. Enabling aggregation writes snapshots to the configured sync folder.
 - **Source:** [kiat.agents](../config/omarchy/plugins/kiat.agents).

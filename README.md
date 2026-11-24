@@ -15,7 +15,7 @@ This repository contains curated source and neutral defaults. Personal preferenc
 | [My Network](docs/components.md#my-network) | Wi-Fi connections, connection diagnostics, and captive-portal sign-in helper. | Default |
 | [My Notifications](docs/components.md#my-notifications) | Notification popups, history, and Do Not Disturb service. | Default |
 | [My Idle](docs/components.md#my-idle) | Screensaver, lock, and display-wake handling integrated with Vigil. | Default |
-| [My Agents](docs/components.md#my-agents) | AI account usage, limits, pace, balances, and available reset credits. | `--agents` |
+| [My Agents](docs/components.md#my-agents) | AI account usage as per-window gas tanks: segmented level, pace needle, prepaid balances, and available reset credits. | `--agents` |
 | [Relay](docs/components.md#relay) | Live translated meeting captions with a desktop app and bar widget. | `--relay` |
 
 ## Setup tools
