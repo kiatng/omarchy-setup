@@ -11,3 +11,15 @@ Work from the repository root. Use `bin/setup plan` before installation; preview
 For prolonged local work, use the installed Vigil skill or `vigil --help`; respect disabled task requests and release only your own hold. Other PC controls: `omarchy <group> --help`. Do not suspend or lock a working computer for validation.
 
 Keep the README catalog and relevant guide current when adding components. Validate according to the maintenance guide before publishing.
+
+## Working with Kiat
+
+Observed preferences, short and editable:
+
+- Offer options before building: a few rendered mockups or directions, then implement the chosen one.
+- Expect detail passes after the first cut: colour, sizing, placement, wording.
+- Explain the reasoning behind a visual or structural choice, and say plainly when an earlier claim or mock was wrong.
+- Prefer meaning over decoration: colour and indicators only where they carry information.
+- Questions about a design are often bug reports in disguise; re-check the logic before answering.
+- Verify against the real thing (live desktop, rendered output), not only mockups, before calling a change done.
+- Keep repository hygiene: commit and push finished work, keep README and component docs current, and keep working clones out of /tmp.
