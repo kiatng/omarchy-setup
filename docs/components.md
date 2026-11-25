@@ -35,6 +35,10 @@ Use the matching section only. Commands assume installation; source paths link i
 ## My Notifications
 
 - **Use:** receives desktop notifications and supplies popups, history, and Do Not Disturb behavior. Runs as a shell service; no separate launcher.
+- **Popups:** stack top-right, clear of the bar, and click to run the sender's default action or focus its app. Left-click acts, right-click dismisses. Low-urgency popups last at least 5 seconds, normal ones 8, critical ones stay until dismissed; a sender's expire timeout is honoured within a 30-second cap, and hovering pauses the countdown. Chat-app incoming calls are held for 30 seconds. A toast carries its app icon, media/avatar image, or glyph, and the card text is sanitized before display.
+- **Do Not Disturb:** silences popups while still recording non-ephemeral notifications in history. Omarchy's own action confirmations and bare `notify-send` critical alerts bypass it, since chat apps abuse critical urgency.
+- **History:** keeps the newest 10 notifications, replayed on demand. Settings and history live in `~/.local/state/omarchy/` (`notifications.json` for DND, one file per popup under `notifications/`, archived entries under `notifications/history/`, image copies under `notifications/images/`). Popups still on screen survive a shell restart; expired ones archive as they would have.
+- **IPC (`omarchy-shell notifications <command>`):** `ping`, `dndState`, `isDnd`, `toggleDnd`, `setDnd <value>`, `showHistory`, `clear`, `dismissAll`, `dismissOne`, `invokeLast`, `dismiss <summary-substring>`.
 - **Source:** [kiat.notifications](../config/omarchy/plugins/kiat.notifications). Installer replaces the stock notification service. Notification history is not bundled.
 
 ## My Idle
