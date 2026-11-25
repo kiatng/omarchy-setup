@@ -13,7 +13,7 @@ This repository contains curated source and neutral defaults. Personal preferenc
 | [Local and Home Clock](docs/components.md#local-and-home-clock) | Local/home times and a calendar popup. | Default |
 | [My Weather](docs/components.md#my-weather) | Bar weather pill and detailed forecast panel. | Default |
 | [My Network](docs/components.md#my-network) | Wi-Fi connections, connection diagnostics, and captive-portal sign-in helper. | Default |
-| [My Notifications](docs/components.md#my-notifications) | Notification popups, history, and Do Not Disturb service. | Default |
+| [My Notifications](docs/components.md#my-notifications) | Grouped notification stacks with inline actions, code and message copy, history, and Do Not Disturb. | Default |
 | [My Idle](docs/components.md#my-idle) | Screensaver, lock, and display-wake handling integrated with Vigil. | Default |
 | [My Agents](docs/components.md#my-agents) | AI account usage as per-window gas tanks: segmented level, pace needle, prepaid balances, and available reset credits. | `--agents` |
 | [Relay](docs/components.md#relay) | Live translated meeting captions with a desktop app and bar widget. | `--relay` |

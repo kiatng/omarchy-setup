@@ -34,11 +34,13 @@ Use the matching section only. Commands assume installation; source paths link i
 
 ## My Notifications
 
-- **Use:** receives desktop notifications and supplies popups, history, and Do Not Disturb behavior. Runs as a shell service; no separate launcher.
-- **Popups:** stack top-right, clear of the bar, and click to run the sender's default action or focus its app. Left-click acts, right-click dismisses. Low-urgency popups last at least 5 seconds, normal ones 8, critical ones stay until dismissed; a sender's expire timeout is honoured within a 30-second cap, and hovering pauses the countdown. Chat-app incoming calls are held for 30 seconds. A toast carries its app icon, media/avatar image, or glyph, and the card text is sanitized before display.
+- **Use:** receives desktop notifications and supplies popup stacks, inline actions, codes, copy, history, and Do Not Disturb. Runs as a shell service; no separate launcher.
+- **Popups:** grouped stacks in the top-right corner, clear of the bar. Click a card to run the sender's default action (or focus its app), or use its inline buttons. Low-urgency popups last at least 5 seconds, normal ones 8, within a 30-second cap; critical ones stay until dismissed. Hover holds the countdown.
+- **Keyboard:** hands the deck to the keyboard: Up/Down (or K/J, Tab) moves, Enter clicks the card, 1-9 presses its buttons, Delete dismisses, and Escape or ten idle seconds leave.
+- **Copy:** the footer's Copy all copies every card's summary and body; Select first, then choose cards and Copy selected (or Close selected). Each copied message starts with the notification's arrival time (`[yyyy-MM-dd HH:mm:ss]`), then its summary and body, separated by blank lines. Codes found in a notification get their own Copy button, written to the clipboard as sensitive text that is cleared after a minute if unchanged.
 - **Do Not Disturb:** silences popups while still recording non-ephemeral notifications in history. Omarchy's own action confirmations and bare `notify-send` critical alerts bypass it, since chat apps abuse critical urgency.
-- **History:** keeps the newest 10 notifications, replayed on demand. Settings and history live in `~/.local/state/omarchy/` (`notifications.json` for DND, one file per popup under `notifications/`, archived entries under `notifications/history/`, image copies under `notifications/images/`). Popups still on screen survive a shell restart; expired ones archive as they would have.
-- **IPC (`omarchy-shell notifications <command>`):** `ping`, `dndState`, `isDnd`, `toggleDnd`, `setDnd <value>`, `showHistory`, `clear`, `dismissAll`, `dismissOne`, `invokeLast`, `dismiss <summary-substring>`.
+- **History:** keeps closed notifications for 24 hours, up to 100 entries, and replays the newest 6 on demand. State lives in `~/.local/state/omarchy/notifications/` (`live.json` for cards on screen, `history.json`, `quiet.json` for silenced ones); the directory is private (700) and its files 600. Cards on screen survive a shell restart.
+- **IPC (`omarchy-shell notifications <command>`):** `ping`, `isDnd`, `toggleDnd`, `setDnd <value>`, `act`, `dismissOne`, `dismissAll`, `invokeLast`, `invokeAction <n>`, `keyboard`, `showHistory`, `dismiss <summary-substring>`, `dismissWarnings`, `copyAll`, `copyWarnings`, `count`, `expand`, `probe` (JSON state for scripts).
 - **Source:** [kiat.notifications](../config/omarchy/plugins/kiat.notifications). Installer replaces the stock notification service. Notification history is not bundled.
 
 ## My Idle
