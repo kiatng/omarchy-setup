@@ -13,6 +13,28 @@ Item {
 
   property var settings: ({})
   property var bankedResets: ({})
+  property var copilotQuota: null
+
+  Process {
+    id: copilotQuotaProcess
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var parsed = JSON.parse(text)
+          root.copilotQuota = parsed && parsed.available ? parsed : null
+        } catch (error) {
+          root.copilotQuota = null
+        }
+      }
+    }
+  }
+
+  function refreshCopilotQuota() {
+    if (copilotQuotaProcess.running) return
+    copilotQuotaProcess.command = ["python3", Qt.resolvedUrl("copilot_quota.py").toString().replace(/^file:\/\//, "")]
+    copilotQuotaProcess.running = true
+  }
 
   Process {
     id: bankedProcess
@@ -85,7 +107,10 @@ Item {
       required property var modelData
       agentId: modelData
       path: root.usageDir + "/" + modelData + ".json"
-      onRecordChanged: root.recordsChanged()
+      onRecordChanged: {
+        if (agentId === "copilot") root.refreshCopilotQuota()
+        root.recordsChanged()
+      }
     }
 
     onObjectAdded: (index, object) => root.rebuildAgents()
@@ -144,6 +169,7 @@ Item {
 
   Component.onCompleted: {
     rescanAgents()
+    refreshCopilotQuota()
     if (syncConfigured()) scheduleSync()
   }
 

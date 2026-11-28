@@ -996,6 +996,23 @@ Panel {
     function refresh(): string { root.refreshNow(); return "ok" }
   }
 
+  function copilotUsageSuffix() {
+    var q = usage.copilotQuota
+    if (!q || q.unlimited === true) return ""
+    var entitlement = Number(q.entitlement)
+    if (!isFinite(entitlement) || entitlement <= 0) return ""
+    var used = Math.max(0, Number(q.used) || 0)
+    var rawReset = String(q.resetsAt || "")
+    if (rawReset !== "") {
+      var resetMs = new Date(rawReset).getTime()
+      if (isFinite(resetMs) && resetMs <= root.nowMs) used = 0
+    }
+    var usedText = Math.abs(used - Math.round(used)) < 0.005
+      ? String(Math.round(used))
+      : String(Number(used.toFixed(2)))
+    return usedText + "/" + String(Math.round(entitlement))
+  }
+
   BarIconButton {
     id: button
     anchors.fill: parent
@@ -1016,7 +1033,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: panel.loadedContent
-    contentWidth: panel.fittedContentWidth(Style.space(380))
+    contentWidth: panel.fittedContentWidth(Style.space(480))
     contentHeight: panel.fittedContentHeight(panel.loadedContentHeight, Style.space(860))
 
     content: PanelKeyCatcher {
@@ -1504,6 +1521,7 @@ Panel {
           required property var modelData
           width: section.width
           window: modelData
+          providerId: section.provider ? section.provider.providerId : ""
           bankedText: root.bankedResetText(section.provider.providerId, "", modelData)
           stale: !!section.provider && section.provider.limitsStale === true
           fetchedAt: section.provider ? Number(section.provider.limitsFetchedAt || 0) : 0
@@ -2017,6 +2035,7 @@ Panel {
   component CompactLimit: Item {
     id: compact
     property var window: null
+    property string providerId: ""
     property string bankedText: ""
     // The age of numbers kept past a failed check is shown only on hover.
     property bool stale: false
@@ -2032,6 +2051,8 @@ Panel {
     }
     readonly property string resetTime: {
       if (resetMs <= 0) return ""
+      if (compact.providerId === "copilot")
+        return new Date(window.resetAt).toLocaleString(Qt.locale(Commons.I18n.formatLocale), "d MMM")
       // Always hh:mm, so every row's day text is the same width and the
       // tanks beside them line up.
       return Qt.formatDateTime(new Date(window.resetAt), "ddd hh:mm")
@@ -2046,6 +2067,19 @@ Panel {
       font.pixelSize: Style.font.bodySmall
       text: "Mon 00:00"
     }
+    TextMetrics {
+      id: compactTitleMetrics
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      text: "Monthly"
+    }
+    TextMetrics {
+      id: compactSuffixMetrics
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      text: "1500/1500"
+    }
+    readonly property real titleWidth: Math.max(width * 0.26, compactTitleMetrics.advanceWidth + compactSuffixMetrics.advanceWidth + Style.space(6))
     readonly property real rowHeight: Math.max(compactTitle.implicitHeight, compactValue.implicitHeight)
     implicitHeight: rowHeight + (bankedLabel.visible ? Style.space(5) + bankedLabel.implicitHeight : 0)
 
@@ -2086,16 +2120,37 @@ Panel {
       }
     }
 
-    Text {
-      id: compactTitle
-      textFormat: Text.PlainText
-      width: parent.width * 0.26
+    Item {
+      id: compactTitleRow
+      readonly property string baseTitle: compact.window ? root.windowDisplayTitle(compact.window.title) : ""
+      readonly property string copilotSuffix: compact.providerId === "copilot" ? root.copilotUsageSuffix() : ""
+      width: compact.titleWidth
+      height: compactTitle.implicitHeight
       y: (compact.rowHeight - height) / 2
-      text: compact.window ? root.windowDisplayTitle(compact.window.title) : ""
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      elide: Text.ElideRight
+
+      Text {
+        id: compactTitle
+        textFormat: Text.PlainText
+        width: compactTitleRow.copilotSuffix !== "" ? implicitWidth : compactTitleRow.width
+        text: compactTitleRow.baseTitle
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        elide: Text.ElideRight
+      }
+
+      Text {
+        id: compactSuffix
+        visible: compactTitleRow.copilotSuffix !== ""
+        anchors.left: compactTitle.right
+        anchors.leftMargin: Style.space(5)
+        anchors.baseline: compactTitle.baseline
+        textFormat: Text.PlainText
+        text: compactTitleRow.copilotSuffix
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+      }
     }
 
     // What is left, between the title and the day it resets: the tank is the
@@ -2103,12 +2158,13 @@ Panel {
     // window, so the level reads against the time left.
     Tank {
       id: compactTank
-      anchors.left: compactTitle.right
+      anchors.left: compactTitleRow.right
       anchors.leftMargin: Style.space(10)
       anchors.right: compactValue.left
       anchors.rightMargin: Style.space(10)
       y: (compact.rowHeight - height) / 2
       value: compact.window ? compact.window.percent : -1
+      segments: compact.window && compact.window.title === "Monthly" ? 4 : 7
       alarming: compact.alarming
       refFraction: compact.refFraction
     }
