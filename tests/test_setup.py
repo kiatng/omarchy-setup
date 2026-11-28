@@ -26,11 +26,12 @@ class SetupTests(unittest.TestCase):
         self.assertFalse(any('kiat.agents' in x for x in writes))
     def test_apply_and_rollback(self):
         path=self.home/'.config/omarchy/shell.json';path.parent.mkdir(parents=True)
-        original={'bar':{'layout':{'center':[{'id':'omarchy.clock','format':'HH:mm'}]}},'idle':{'lock':420},'custom':'keep'}
+        original={'bar':{'layout':{'left':[{'id':'omarchy.menu'}],'center':[{'id':'omarchy.clock','format':'HH:mm'}]}},'idle':{'lock':420},'custom':'keep'}
         path.write_text(json.dumps(original));before=path.read_bytes()
         backup=setup.apply(self.home,self.plan())
         config=json.loads(path.read_text())
         self.assertEqual(config['idle']['lock'],420);self.assertEqual(config['custom'],'keep')
+        self.assertEqual(config['bar']['layout']['left'][0]['id'],'kiat.workspace-map')
         self.assertEqual(config['bar']['layout']['center'][0]['format'],'HH:mm')
         self.assertEqual(config['bar']['layout']['center'][0]['id'],'kiat.clock')
         self.assertEqual(backup.stat().st_mode&0o777,0o700)
@@ -45,6 +46,10 @@ class SetupTests(unittest.TestCase):
     def test_idempotent_layout(self):
         c=setup.layout(json.loads((ROOT/'config/shell-default.json').read_text()),True,True)
         self.assertEqual(setup.layout(c,True,True),c)
+    def test_layout_handles_string_entries_in_plugins(self):
+        c=setup.layout({'bar':{'layout':{'left':['omarchy.menu']}},'plugins':['local.example']},False,False)
+        self.assertEqual(c['bar']['layout']['left'][0],'kiat.workspace-map')
+        self.assertIn('local.example',c['plugins'])
     def test_symlink_cannot_write_outside_home(self):
         outside=Path(self.temp.name)/'outside';outside.mkdir()
         (self.home/'.config').symlink_to(outside,target_is_directory=True)

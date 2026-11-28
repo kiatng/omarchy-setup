@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "kiat.workspace-map",
+  "name": "Workspace Map",
+  "version": "1.0.0",
+  "author": "Kiat",
+  "description": "Shows every screen, workspace, open window, and workspace history in a popup",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspace Map",
+    "description": "Opens a popup showing all workspaces and open windows across every screen with back/forward history",
+    "category": "Compositor",
+    "allowMultiple": false
+  }
+}

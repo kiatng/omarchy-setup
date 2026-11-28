@@ -64,3 +64,11 @@ Use the matching section only. Commands assume installation; source paths link i
 - **Use:** open Relay from the launcher or its bar widget; configure microphone and provider on this computer before starting captions.
 - **Configure:** provider keys through the app’s system-keyring integration. Cloud providers receive captured audio when enabled; install an offline provider separately if desired.
 - **Source:** [apps/relay](../apps/relay), including its shell widget. Credentials, recordings, transcripts, and model weights are excluded.
+
+## Workspace Map
+
+- **Use:** replaces the top-left menu icon in the bar. Click the bar icon (or run `omarchy-shell shell toggle kiat.workspace-map`) to list every monitor, workspace, `Super+N` shortcut, and open window on one line each. Click any workspace row to jump straight to it.
+- **Foot terminals:** reads `/proc` for each Foot window when the popup opens so you see the running foreground command alongside short window context (for example `btop`, `herdr`, `amp`, or `copilot`).
+- **History:** keeps a cross-monitor back/forward trail of visited workspaces (up to 50 steps). Use the `<` and `>` buttons in the popup header, `[` and `]` while the popup is open, or bind `SUPER + bracketleft` and `SUPER + bracketright` in `~/.config/hypr/bindings.lua` to `omarchy-shell -q kiat.workspace-map back` and `forward`.
+- **IPC (`omarchy-shell -q kiat.workspace-map <command>`):** `toggle`, `open`, `close`, `show`, `hide`, `refresh`, `back`, `forward`.
+- **Source:** [kiat.workspace-map](../config/omarchy/plugins/kiat.workspace-map).

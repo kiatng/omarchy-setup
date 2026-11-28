@@ -10,6 +10,7 @@ This repository contains curated source and neutral defaults. Personal preferenc
 | --- | --- | --- |
 | [Afterglow (formerly Colombo)](docs/components.md#afterglow) | Animated logo, large clock, and optional weather screensaver. | Default |
 | [Vigil](docs/components.md#vigil) | One keep-awake switch for manual and AI tasks, with battery-aware sleep policy. | Default |
+| [Workspace Map](docs/components.md#workspace-map) | Multi-monitor workspace popup showing every open window, Foot process, shortcut, and back/forward history. | Default |
 | [Local and Home Clock](docs/components.md#local-and-home-clock) | Local/home times and a calendar popup. | Default |
 | [My Weather](docs/components.md#my-weather) | Bar weather pill and detailed forecast panel. | Default |
 | [My Network](docs/components.md#my-network) | Wi-Fi connections, connection diagnostics, and captive-portal sign-in helper. | Default |

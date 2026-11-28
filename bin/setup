@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parent.parent
-PLUGINS = ('kiat.clock','kiat.weather','kiat.network','kiat.notifications','kiat.idle')
+PLUGINS = ('kiat.clock','kiat.weather','kiat.network','kiat.notifications','kiat.idle','kiat.workspace-map')
 
 def safe(home, relative):
     rel = Path(relative)
@@ -45,16 +45,21 @@ def layout(existing, agents=False, relay=False):
     if not isinstance(sections,dict): raise ValueError('Unexpected bar layout')
     for section in ('left','centerBegin','center','centerEnd','right','tray'):
         sections.setdefault(section,[])
-    replacements = {'omarchy.clock':'kiat.clock','omarchy.network':'kiat.network'}
+    replacements = {'omarchy.clock':'kiat.clock','omarchy.network':'kiat.network','omarchy.menu':'kiat.workspace-map'}
     if agents: replacements['omarchy.agents']='kiat.agents'
+    def entry_id(entry):
+        return entry if isinstance(entry,str) else entry.get('id')
     for entries in sections.values():
-        for entry in entries:
-            if entry.get('id') in replacements: entry['id']=replacements[entry['id']]
-            if entry.get('id')=='omarchy.indicators':
+        for i,entry in enumerate(entries):
+            eid = entry_id(entry)
+            if eid in replacements:
+                if isinstance(entry,str): entries[i]=replacements[eid]
+                else: entry['id']=replacements[eid]
+            if isinstance(entry,dict) and entry.get('id')=='omarchy.indicators':
                 items=entry.get('items',entry.get('indicators',['PasswordlessSudo','ScreenRecording','RemoteSession','Reminder','NightLight','Dnd','StayAwake']))
                 entry['items']=[x for x in items if (x if isinstance(x,str) else x.get('id'))!='StayAwake']
     def add(section, plugin):
-        if not any(e.get('id')==plugin for entries in sections.values() for e in entries):
+        if not any(entry_id(e)==plugin for entries in sections.values() for e in entries):
             sections[section].append({'id':plugin})
     add('centerBegin','kiat.vigil')
     add('centerEnd','kiat.weather')
@@ -65,7 +70,7 @@ def layout(existing, agents=False, relay=False):
         if name not in disabled: disabled.append(name)
     enabled=config.setdefault('plugins',[])
     for name in ('kiat.idle','kiat.notifications'):
-        if not any(e.get('id')==name for e in enabled):enabled.append({'id':name})
+        if not any(entry_id(e)==name for e in enabled):enabled.append({'id':name})
     config.setdefault('idle',{'screensaver':150,'lock':300})
     return config
 
